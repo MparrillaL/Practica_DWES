@@ -27,7 +27,7 @@ export function estaInscrito(tallerId, email, inscripciones) {
  * 3. Normaliza y valida una solicitud de inscripción en el servidor.
  * Devuelve un objeto con los errores detectados (si está vacío {}, los datos son válidos).
  */
-export function validarInscripcion(datos, taller, inscripciones) {
+export function validarInscripcion(datos = {}, taller, inscripciones) {
   const errores = {};
 
   // a. Verificar si el taller existe (protección contra IDs manipulados)
@@ -37,21 +37,23 @@ export function validarInscripcion(datos, taller, inscripciones) {
   }
 
   // b. Normalización estricta de textos recibidos
-  const nombreNormalizado = String(datos.nombre || '').trim();
-  const emailNormalizado = String(datos.email || '').trim().toLowerCase();
+  const nombreNormalizado = String(datos.nombre ?? '').trim();
+  const emailNormalizado = String(datos.email ?? '').trim().toLowerCase();
 
   // c. Validar Nombre (obligatorio)
   if (!nombreNormalizado) {
     errores.nombre = 'El nombre es obligatorio.';
   } else if (nombreNormalizado.length < 2) {
     errores.nombre = 'El nombre debe tener al menos 2 caracteres.';
+  } else if (nombreNormalizado.length > 100) {
+    errores.nombre = 'El nombre no puede superar los 100 caracteres.';
   }
 
   // d. Validar Email (formato)
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailNormalizado) {
     errores.email = 'El email es obligatorio.';
-  } else if (!regexEmail.test(emailNormalizado)) {
+  } else if (emailNormalizado.length > 254 || !regexEmail.test(emailNormalizado)) {
     errores.email = 'El email no es válido.';
   } else if (estaInscrito(taller.id, emailNormalizado, inscripciones)) {
     // e. Validar correo duplicado en el mismo taller

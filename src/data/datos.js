@@ -29,21 +29,18 @@ export const inscripciones = [
     id: 1,
     tallerId: 1,
     nombre: 'Curro Ximénez',
-    email: 'currox@example.com',
-    emailNormalizado: 'currox@example.com'
+    email: 'currox@example.com'
   },
   {
     id: 2,
     tallerId: 2,
     nombre: 'Ana López',
-    email: 'ana@example.com',
-    emailNormalizado: 'ana@example.com'
+    email: 'ana@example.com'
   },
   {
     id: 3,
     tallerId: 3,
     nombre: 'Carlos Gómez',
-    email: 'carlos@example.com',
-    emailNormalizado: 'carlos@example.com'
+    email: 'carlos@example.com'
   }
 ];
