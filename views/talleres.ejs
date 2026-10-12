@@ -1,0 +1,48 @@
+<%- include('partials/header') %>
+
+<h2>Catálogo de Talleres</h2>
+
+<!-- Formulario GET para enviar filtros a /talleres -->
+<form action="/talleres" method="get" class="form-filtros">
+  <label for="categoria">Categoría:</label>
+  <select id="categoria" name="categoria">
+    <option value="">Todas</option>
+    <option value="web" <%= filtros.categoria === 'web' ? 'selected' : '' %>>Web</option>
+    <option value="sistemas" <%= filtros.categoria === 'sistemas' ? 'selected' : '' %>>Sistemas</option>
+  </select>
+
+  <label for="nivel">Nivel:</label>
+  <select id="nivel" name="nivel">
+    <option value="">Todos</option>
+    <option value="inicial" <%= filtros.nivel === 'inicial' ? 'selected' : '' %>>Inicial</option>
+    <option value="intermedio" <%= filtros.nivel === 'intermedio' ? 'selected' : '' %>>Intermedio</option>
+    <option value="avanzado" <%= filtros.nivel === 'avanzado' ? 'selected' : '' %>>Avanzado</option>
+  </select>
+
+  <label>
+    <input type="checkbox" name="disponibles" value="true" <%= filtros.disponibles ? 'checked' : '' %>>
+    Solo disponibles
+  </label>
+
+  <button type="submit">Filtrar</button>
+  <a href="/talleres">Limpiar filtros</a>
+</form>
+
+<hr>
+
+<% if (talleres.length === 0) { %>
+  <p class="alerta">No se encontraron talleres que cumplan con los criterios especificados.</p>
+<% } else { %>
+  <ul class="lista-talleres">
+    <% for (const taller of talleres) { %>
+      <li>
+        <!-- Salida escapada predeterminada <%= %> contra ataques XSS -->
+        <h3><a href="/talleres/<%= taller.id %>"><%= taller.titulo %></a></h3>
+        <p>Categoría: <strong><%= taller.categoria %></strong> | Nivel: <strong><%= taller.nivel %></strong></p>
+        <p>Plazas disponibles: <strong><%= taller.plazasRestantes %> / <%= taller.plazas %></strong></p>
+      </li>
+    <% } %>
+  </ul>
+<% } %>
+
+<%- include('partials/footer') %>

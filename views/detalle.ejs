@@ -1,0 +1,36 @@
+<%- include('partials/header') %>
+
+<% if (error) { %>
+  <h2>Error</h2>
+  <p class="alerta-error"><%= error %></p>
+  <a href="/talleres">&larr; Volver al catálogo</a>
+<% } else { %>
+  <article class="ficha-taller">
+    <h2><%= taller.titulo %></h2>
+    <p><strong>Categoría:</strong> <%= taller.categoria %></p>
+    <p><strong>Nivel:</strong> <%= taller.nivel %></p>
+
+    <!-- Representación de los 3 estados exigidos -->
+    <div class="estado-plazas">
+      <% if (taller.plazasRestantes > 1) { %>
+        <p class="estado disponible"><%= taller.plazasRestantes %> plazas disponibles</p>
+      <% } else if (taller.plazasRestantes === 1) { %>
+        <p class="estado ultima-plaza">Última plaza disponible</p>
+      <% } else { %>
+        <p class="estado completo">Completo</p>
+      <% } %>
+    </div>
+
+    <div class="acciones">
+      <% if (taller.plazasRestantes > 0) { %>
+        <a href="/talleres/<%= taller.id %>/inscripcion" class="btn-inscripcion">Inscribirse en este taller</a>
+      <% } else { %>
+        <p class="mensaje-cerrado">Las inscripciones para este taller están cerradas por aforo completo.</p>
+      <% } %>
+    </div>
+  </article>
+
+  <p><a href="/talleres">&larr; Volver al catálogo</a></p>
+<% } %>
+
+<%- include('partials/footer') %>
