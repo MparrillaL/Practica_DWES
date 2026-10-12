@@ -1,0 +1,24 @@
+{
+  "name": "practica_dwes",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/MparrillaL/Practica_DWES#readme",
+  "bugs": {
+    "url": "https://github.com/MparrillaL/Practica_DWES/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MparrillaL/Practica_DWES.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "ejs": "^7.0.1",
+    "express": "^5.3.0"
+  }
+}
