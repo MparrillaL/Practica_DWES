@@ -3,7 +3,17 @@
 Práctica de Desarrollo Web en Entorno Servidor (DWES). Aplicación hecha con Node.js, Express y EJS para gestionar los talleres de unas jornadas tecnológicas. Los datos se guardan en memoria (se pierden al reiniciar el servidor).
 
 - Repositorio: https://github.com/MparrillaL/Practica_DWES
-- Chat usado como apoyo: **(https://gemini.google.com/share/d/1zY4cVk52PGe9yds6OS69ZQu5ID7M1lMU?usp=sharing)**
+- **Nota:** Este README incluye tanto la entrega original como la recuperación (Addendum).
+- **Chat de apoyo (Entrega original):** https://gemini.google.com/share/d/1zY4cVk52PGe9yds6OS69ZQu5ID7M1lMU?usp=sharing
+- **Chat de apoyo (Recuperación):** https://claude.ai/share/a0302447-259b-41f1-9158-a5646b6ae193
+
+## Tabla de contenidos
+
+- [Cómo ejecutarla](#cómo-ejecutarla)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Funcionalidades principales](#funcionalidades-principales)
+- [Addendum (Recuperación)](#addendum-recuperación)
+- [Ejemplos con curl](#ejemplos-con-curl)
 
 ## Cómo ejecutarla
 
@@ -17,64 +27,28 @@ El servidor arranca en http://localhost:3000 (se puede cambiar con la variable `
 ## Estructura del proyecto
 
 ```
+Practica_DWES/
 ├── package.json
+├── README.md
 ├── src
-│   ├── app.js                    # servidor Express y rutas
-│   ├── data/datos.js             # colecciones talleres e inscripciones (3 elementos cada una)
-│   ├── utils/utilidades.js       # funciones que no dependen de req/res
-│   └── middlewares/registro.js   # middleware de logging de peticiones
+│   ├── app.js                      # servidor Express y rutas
+│   ├── data
+│   │   └── datos.js                # colecciones talleres e inscripciones (3 elementos cada una)
+│   ├── utils
+│   │   └── utilidades.js           # funciones que no dependen de req/res
+│   └── middlewares
+│       └── registro.js             # middleware de logging de peticiones
 └── views
-    ├── talleres.ejs        # listado con filtros
-    ├── detalle.ejs         # ficha del taller
-    ├── inscripcion.ejs     # formulario de inscripción
-    ├── error.ejs           # página de error 404
-    └── partials            # cabecera y pie comunes
+    ├── talleres.ejs                # listado con filtros
+    ├── detalle.ejs                 # ficha del taller
+    ├── inscripcion.ejs             # formulario de inscripción
+    ├── error.ejs                   # página de error 404
+    └── partials
+        ├── header.ejs              # cabecera común
+        └── footer.ejs              # pie común
 ```
 
-## Funcionalidades Adicionales (Addendum)
-
-### Middleware de Logging
-
-La aplicación incluye un middleware propio (`src/middlewares/registro.js`) que se ejecuta para **todas las peticiones** recibidas por el servidor. Este middleware registra en consola:
-
-- **Fecha y hora** de la petición (formato `DD/MM/YYYY HH:MM:SS`)
-- **Método HTTP** utilizado (GET, POST, etc.)
-- **URL solicitada** (incluyendo parámetros de consulta)
-
-**Ejemplo de salida en consola:**
-```
-[15/11/2026 17:14:00] GET /talleres
-[15/11/2026 17:14:25] GET /talleres/1
-[15/11/2026 17:14:40] POST /talleres/2/inscripcion
-[15/11/2026 17:14:44] GET /ruta-inexistente
-```
-
-El middleware está **correctamente posicionado** al inicio de la cadena de middlewares de Express para capturar todas las peticiones sin perder ninguna. Usa `req.originalUrl` para preservar la URL completa con los parámetros de consulta.
-
-### Tratamiento Global de Rutas Inexistentes (404)
-
-Se ha agregado un manejador global para cualquier ruta que no esté definida en la aplicación. Este manejador:
-
-1. **Devuelve el código HTTP 404** (Not Found)
-2. **Renderiza la vista `error.ejs`** integrada con el diseño de la aplicación (incluye header, footer y botones de navegación)
-3. **Muestra la URL solicitada** para que el usuario vea exactamente qué página pidió
-
-El manejador se encuentra **al final de todas las rutas definidas** en `app.js`, asegurando que solo se activa cuando ninguna otra ruta coincide. No utiliza `next()` porque es el último middleware de la cadena.
-
-**Ejemplo de petición a ruta inexistente:**
-```bash
-curl -i http://localhost:3000/ruta-inexistente
-```
-
-**Respuesta esperada:**
-```
-HTTP/1.1 404 Not Found
-Content-Type: text/html; charset=utf-8
-...
-<h2>Error 404 - Página no encontrada</h2>
-<p>Lo sentimos, el recurso que solicitaste no existe.</p>
-<p>URL solicitada: <code>/ruta-inexistente</code></p>
-```
+## Funcionalidades principales
 
 ### 1. Listado de talleres y filtros (`GET /talleres`)
 
@@ -88,7 +62,7 @@ La función `obtenerPlazasRestantes(taller, inscripciones)` filtra las inscripci
 
 ### 3. Ficha del taller (`GET /talleres/:id`)
 
-El `id` se convierte con `Number()` y se comprueba que sea un entero positivo; si no, se devuelve 404 con un mensaje, así un identificador manipulado (por ejemplo `abc`) no provoca errores. El taller se busca con `find()`. La vista `detalle.ejs` muestra un estado según las plazas restantes:
+El `id` se valida con una **expresión regular de lista blanca** (`^[1-9]\d*`) que rechaza valores no válidos como `0x1` (hexadecimal), `01` (cero a la izquierda), `abc` (texto) o `0` (cero). Si la validación falla o el taller no existe, se devuelve 404. La vista `detalle.ejs` muestra un estado según las plazas restantes:
 
 - Más de una plaza: "N plazas disponibles"
 - Una plaza: "Última plaza disponible"
@@ -100,95 +74,174 @@ Se valida el `id`, se comprueba que el taller existe y que quedan plazas, y se m
 
 ### 5. Alta de inscripción (`POST /talleres/:id/inscripcion`)
 
-El middleware `express.urlencoded` rellena `req.body` con los datos del formulario. Como los datos del navegador no son fiables, se convierten a texto y se limpian antes de usarlos. Después se llama a `validarInscripcion`, que comprueba:
+El middleware `express.urlencoded` rellena `req.body` con los datos del formulario. Como los datos del navegador no son fiables, se convierten a texto y se limpian antes de usarlos.
 
-- que el nombre existe y tiene entre 2 y 100 caracteres,
-- que el correo tiene formato válido,
-- que el correo no está ya inscrito en ese taller (`estaInscrito`, que usa `some()`),
-- que quedan plazas.
+**Validación en dos capas:**
+
+1. **Formato (función `validarInscripcion`):** comprueba que el nombre existe y tiene entre 2 y 100 caracteres, y que el correo tiene formato válido. Devuelve un objeto con estructura `{ valores, errores }` donde `valores` contiene los datos ya limpios.
+
+2. **Reglas de negocio (ruta POST):** si no hay errores de formato, se comprueba que el correo no está ya inscrito en ese taller (`estaInscrito`) y que quedan plazas (`obtenerPlazasRestantes`). Los errores se acumulan en el mismo objeto `errores`.
 
 Si hay errores se responde con 400 y se vuelve a mostrar el formulario con los mensajes, conservando solo los campos que estaban bien. Si todo es correcto se guarda la inscripción (con `siguienteId`) y se aplica **PRG**: se responde con una redirección 303 a `/talleres/:id` para que al recargar la página no se reenvíe el formulario.
 
 ### Funciones de `src/utils/utilidades.js`
 
-| Función | Qué hace |
-|---|---|
-| `obtenerPlazasRestantes(taller, inscripciones)` | Plazas totales menos inscripciones del taller |
-| `estaInscrito(tallerId, email, inscripciones)` | Devuelve `true` si el correo ya está inscrito en ese taller |
-| `validarInscripcion(datos, taller, inscripciones)` | Devuelve un objeto con los errores (vacío si todo es válido) |
-| `siguienteId(inscripciones)` | Calcula el siguiente id de inscripción |
+| Función                                            | Qué hace                                              | Devuelve               |
+| -------------------------------------------------- | ----------------------------------------------------- | ---------------------- |
+| `obtenerPlazasRestantes(taller, inscripciones)`    | Plazas totales menos inscripciones del taller         | Número (>= 0)          |
+| `estaInscrito(tallerId, email, inscripciones)`     | Comprueba si un correo ya está inscrito en ese taller | `true` o `false`       |
+| `validarInscripcion(datos, taller, inscripciones)` | Valida formato y reglas de negocio                    | `{ valores, errores }` |
+| `siguienteId(inscripciones)`                       | Calcula el siguiente id de inscripción                | Número                 |
+| `buscarTallerPorId(idTexto, talleres)`             | Valida y busca un taller por id con regex whitelist   | Objeto taller o `null` |
 
 Estas funciones no usan `req` ni `res`, por eso están en un fichero aparte y `app.js` las importa.
+
+## Addendum (Recuperación)
+
+Este apartado documenta las funcionalidades adicionales implementadas como recuperación de la UD1, siguiendo las instrucciones del profesor.
+
+### Middleware de Logging (`src/middlewares/registro.js`)
+
+Se ha implementado un middleware propio que registra todas las peticiones HTTP recibidas. Este middleware:
+
+- **Qué muestra:** El método HTTP (GET, POST, etc.), la URL completa con parámetros de consulta y la fecha/hora de la petición.
+- **Dónde está:** `src/middlewares/registro.js` (exportado como módulo ES6).
+- **Posición en la cadena:** Se registra **al inicio** de `app.js` (antes de `express.urlencoded()` y de todas las rutas). Esto es crítico porque garantiza que captura **todas** las peticiones entrantes, incluso las que no coinciden con ninguna ruta.
+- **Por qué `originalUrl`:** Se usa `req.originalUrl` (no `req.url`) para preservar la URL completa incluyendo todos los parámetros de consulta. Si hubiese routers montados, `req.url` cambiaría al entrar en cada subrouter, pero `originalUrl` nunca cambia.
+- **Formato:** `[DD/MM/YYYY HH:MM:SS] MÉTODO /url` (ejemplo: `[15/11/2026 17:14:40] POST /talleres/2/inscripcion`)
+
+**Ejemplo de salida en consola:**
+
+```
+Servidor escuchando en http://localhost:3000
+[15/11/2026 17:14:00] GET /
+[15/11/2026 17:14:05] GET /talleres
+[15/11/2026 17:14:25] GET /talleres/1
+[15/11/2026 17:14:40] POST /talleres/2/inscripcion
+[15/11/2026 17:14:44] GET /ruta-inexistente
+```
+
+### Manejador Global de Rutas Inexistentes (`GET /`, línea ~158 de `app.js`)
+
+Se ha implementado un manejador global para devolver **HTTP 404** cuando el usuario solicita una ruta que no existe.
+
+- **Dónde está:** Al final de `app.js`, después de todas las rutas definidas.
+- **Por qué al final:** Express ejecuta los middlewares en orden. Si el manejador 404 estuviese antes, nunca llegaría a ninguna ruta definida. Colocándolo al final se asegura que solo se activa cuando ninguna otra ruta ha coincidido.
+- **Por qué `app.use()` y no `app.get()`:** Porque `app.use()` es un middleware que coincide con **cualquier método HTTP** (GET, POST, DELETE, etc.) en cualquier ruta no registrada. `app.get()` solo coincidiría con peticiones GET a un patrón específico. Además, este manejador tiene cero parámetros: `app.use((req, res) => ...)`, lo cual es un patrón estándar en Express.
+- **No necesita `next()`:** Es el último middleware de la cadena, por eso es terminal.
+- **También captura talleres inexistentes:** Cuando se accede a `/talleres/99` o `/talleres/abc`, la función `buscarTallerPorId()` devuelve `null`, y la ruta responde con la misma vista de error.
+
+**Ejemplo de petición:**
+
+```bash
+curl -i http://localhost:3000/ruta-inexistente
+```
+
+**Respuesta esperada:**
+
+```
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+```
+
+La vista `error.ejs` renderiza un mensaje de error integrado en el diseño de la aplicación (con header, footer y botones de navegación).
 
 ## Ejemplos con curl
 
 Y su equivalente en HTML entre paréntesis. Con el servidor en marcha en el puerto 3000. En Windows PowerShell hay que usar `curl.exe` en lugar de `curl`, y comillas en las URLs con `&`.
 
 ### Listado de talleres
+
 ```bash
 curl -i http://localhost:3000/talleres
 ```
+
 (HTML: enlace "Ver Talleres" de la cabecera.)
 
 ### Filtro por categoría
+
 ```bash
 curl -i "http://localhost:3000/talleres?categoria=web"
 ```
 
 ### Filtro por nivel
+
 ```bash
 curl -i "http://localhost:3000/talleres?nivel=avanzado"
 ```
 
 ### Filtro por disponibilidad
+
 ```bash
 curl -i "http://localhost:3000/talleres?disponibles=true"
 ```
 
 ### Filtros combinados
+
 ```bash
 curl -i "http://localhost:3000/talleres?categoria=web&disponibles=true"
 curl -i "http://localhost:3000/talleres?categoria=web&nivel=avanzado&disponibles=true"
 ```
+
 (HTML para todos los filtros: el formulario de filtros de `/talleres`.)
 
 ### Ficha de un taller
+
 ```bash
 curl -i http://localhost:3000/talleres/1
 ```
+
 (HTML: enlace con el título de cada taller en el listado.)
 
-### Ficha con identificador no válido o inexistente (devuelve 404)
+### Validación de id con regex: rechaza hexadecimal, cero a la izquierda, texto (devuelve 404)
+
 ```bash
+curl -i http://localhost:3000/talleres/0x1
+curl -i http://localhost:3000/talleres/01
 curl -i http://localhost:3000/talleres/abc
 curl -i http://localhost:3000/talleres/99
 ```
 
 ### Formulario de inscripción
+
 ```bash
 curl -i http://localhost:3000/talleres/2/inscripcion
 ```
+
 (HTML: botón "Inscribirse en este taller" de la ficha.)
 
 ### Alta de inscripción correcta (responde 303 y redirige a la ficha)
+
 ```bash
-curl -i -X POST http://localhost:3000/talleres/2/inscripcion -d "nombre=Luis Pérez" -d "email=luis@example.com"
+curl -i -X POST http://localhost:3000/talleres/2/inscripcion \
+  --data-urlencode "nombre=Luis Pérez" \
+  --data-urlencode "email=luis@example.com"
 ```
+
 (HTML: formulario de `/talleres/2/inscripcion`.)
 
 ### Alta con datos no válidos (responde 400 y muestra los errores)
+
 ```bash
-curl -i -X POST http://localhost:3000/talleres/1/inscripcion -d "nombre=" -d "email=correo-malo"
+curl -i -X POST http://localhost:3000/talleres/1/inscripcion \
+  --data-urlencode "nombre=" \
+  --data-urlencode "email=correo-malo"
 ```
 
 ### Correo ya inscrito en el taller (responde 400)
+
 ```bash
-curl -i -X POST http://localhost:3000/talleres/1/inscripcion -d "nombre=Curro" -d "email=currox@example.com"
+curl -i -X POST http://localhost:3000/talleres/1/inscripcion \
+  --data-urlencode "nombre=Curro" \
+  --data-urlencode "email=currox@example.com"
 ```
 
 ### Taller completo (responde 400)
+
 ```bash
-curl -i -X POST http://localhost:3000/talleres/3/inscripcion -d "nombre=Pepe" -d "email=pepe@example.com"
+curl -i -X POST http://localhost:3000/talleres/3/inscripcion \
+  --data-urlencode "nombre=Pepe" \
+  --data-urlencode "email=pepe@example.com"
 ```
 
 ## Ejemplos de Funcionalidades Adicionales (Addendum)
@@ -210,11 +263,13 @@ El middleware registra **automáticamente** toda petición HTTP, independienteme
 ### Prueba del Tratamiento de Rutas 404
 
 #### Ruta completamente inexistente
+
 ```bash
 curl -i http://localhost:3000/ruta-inexistente
 ```
 
 **Respuesta esperada:**
+
 ```
 HTTP/1.1 404 Not Found
 Content-Type: text/html; charset=utf-8
@@ -224,6 +279,7 @@ Content-Type: text/html; charset=utf-8
 Junto con la página HTML renderizada mostrando "Error 404 - Página no encontrada" y la URL solicitada.
 
 #### Otras rutas que devuelven 404
+
 ```bash
 curl -i http://localhost:3000/admin
 curl -i http://localhost:3000/talleres/1/borrar
