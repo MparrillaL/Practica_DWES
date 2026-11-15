@@ -15,16 +15,10 @@
   "type": "module",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node src/app.js"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0",
     "ejs": "^7.0.1",
-    "express": "^5.3.0",
-    "express-rate-limit": "^8.7.1",
-    "express-session": "^1.19.0",
-    "supertest": "^7.3.1",
-    "vitest": "^5.0.4"
+    "express": "^5.3.0"
   }
 }
