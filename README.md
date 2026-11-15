@@ -19,17 +19,62 @@ El servidor arranca en http://localhost:3000 (se puede cambiar con la variable `
 ```
 ├── package.json
 ├── src
-│   ├── app.js              # servidor Express y rutas
-│   ├── data/datos.js       # colecciones talleres e inscripciones (3 elementos cada una)
-│   └── utils/utilidades.js # funciones que no dependen de req/res
+│   ├── app.js                    # servidor Express y rutas
+│   ├── data/datos.js             # colecciones talleres e inscripciones (3 elementos cada una)
+│   ├── utils/utilidades.js       # funciones que no dependen de req/res
+│   └── middlewares/registro.js   # middleware de logging de peticiones
 └── views
     ├── talleres.ejs        # listado con filtros
     ├── detalle.ejs         # ficha del taller
     ├── inscripcion.ejs     # formulario de inscripción
+    ├── error.ejs           # página de error 404
     └── partials            # cabecera y pie comunes
 ```
 
-## Cómo se ha hecho cada funcionalidad
+## Funcionalidades Adicionales (Addendum)
+
+### Middleware de Logging
+
+La aplicación incluye un middleware propio (`src/middlewares/registro.js`) que se ejecuta para **todas las peticiones** recibidas por el servidor. Este middleware registra en consola:
+
+- **Fecha y hora** de la petición (formato `DD/MM/YYYY HH:MM:SS`)
+- **Método HTTP** utilizado (GET, POST, etc.)
+- **URL solicitada** (incluyendo parámetros de consulta)
+
+**Ejemplo de salida en consola:**
+```
+[15/11/2026 17:14:00] GET /talleres
+[15/11/2026 17:14:25] GET /talleres/1
+[15/11/2026 17:14:40] POST /talleres/2/inscripcion
+[15/11/2026 17:14:44] GET /ruta-inexistente
+```
+
+El middleware está **correctamente posicionado** al inicio de la cadena de middlewares de Express para capturar todas las peticiones sin perder ninguna. Usa `req.originalUrl` para preservar la URL completa con los parámetros de consulta.
+
+### Tratamiento Global de Rutas Inexistentes (404)
+
+Se ha agregado un manejador global para cualquier ruta que no esté definida en la aplicación. Este manejador:
+
+1. **Devuelve el código HTTP 404** (Not Found)
+2. **Renderiza la vista `error.ejs`** integrada con el diseño de la aplicación (incluye header, footer y botones de navegación)
+3. **Muestra la URL solicitada** para que el usuario vea exactamente qué página pidió
+
+El manejador se encuentra **al final de todas las rutas definidas** en `app.js`, asegurando que solo se activa cuando ninguna otra ruta coincide. No utiliza `next()` porque es el último middleware de la cadena.
+
+**Ejemplo de petición a ruta inexistente:**
+```bash
+curl -i http://localhost:3000/ruta-inexistente
+```
+
+**Respuesta esperada:**
+```
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+...
+<h2>Error 404 - Página no encontrada</h2>
+<p>Lo sentimos, el recurso que solicitaste no existe.</p>
+<p>URL solicitada: <code>/ruta-inexistente</code></p>
+```
 
 ### 1. Listado de talleres y filtros (`GET /talleres`)
 
@@ -145,3 +190,44 @@ curl -i -X POST http://localhost:3000/talleres/1/inscripcion -d "nombre=Curro" -
 ```bash
 curl -i -X POST http://localhost:3000/talleres/3/inscripcion -d "nombre=Pepe" -d "email=pepe@example.com"
 ```
+
+## Ejemplos de Funcionalidades Adicionales (Addendum)
+
+### Prueba del Middleware de Logging
+
+Al ejecutar cualquiera de las peticiones anteriores, observarás en la **consola del servidor** salidas como:
+
+```bash
+Servidor escuchando en http://localhost:3000
+[15/11/2026 17:14:00] GET /talleres
+[15/11/2026 17:14:25] GET /talleres/1
+[15/11/2026 17:14:40] POST /talleres/2/inscripcion
+[15/11/2026 17:14:44] GET /ruta-inexistente
+```
+
+El middleware registra **automáticamente** toda petición HTTP, independientemente de si la ruta existe o no.
+
+### Prueba del Tratamiento de Rutas 404
+
+#### Ruta completamente inexistente
+```bash
+curl -i http://localhost:3000/ruta-inexistente
+```
+
+**Respuesta esperada:**
+```
+HTTP/1.1 404 Not Found
+Content-Type: text/html; charset=utf-8
+...
+```
+
+Junto con la página HTML renderizada mostrando "Error 404 - Página no encontrada" y la URL solicitada.
+
+#### Otras rutas que devuelven 404
+```bash
+curl -i http://localhost:3000/admin
+curl -i http://localhost:3000/talleres/1/borrar
+curl -i http://localhost:3000/api/usuarios
+```
+
+Todas estas peticiones devuelven **HTTP 404** y renderizarán la misma vista de error integrada en el diseño de la aplicación.

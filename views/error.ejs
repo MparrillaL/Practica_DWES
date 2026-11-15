@@ -1,0 +1,15 @@
+<%- include('partials/header') %>
+
+<div class="contenedor-error">
+  <h2>Error 404 - Página no encontrada</h2>
+  <p class="mensaje-error">Lo sentimos, el recurso que solicitaste no existe.</p>
+  <p>URL solicitada: <code><%= url %></code></p>
+  
+  <div class="acciones">
+    <a href="/talleres" class="btn">Volver al Catálogo de Talleres</a>
+    <a href="/" class="btn">Ir a Inicio</a>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+

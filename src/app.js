@@ -8,10 +8,14 @@ import {
     validarInscripcion,
     siguienteId,
 } from './utils/utilidades.js';
+import { middlewareRegistro } from './middlewares/registro.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Middleware de registro (debe estar PRIMERO para capturar todas las peticiones)
+app.use(middlewareRegistro);
 
 // 1. Middlewares: urlencoded rellena req.body con los datos de los formularios HTML
 app.use(express.urlencoded({ extended: false }));
@@ -178,6 +182,17 @@ app.post('/talleres/:id/inscripcion', (req, res) => {
   // 5. PRG (Post/Redirect/Get): redirección 303 para que F5 no reenvíe el formulario
   return res.redirect(303, `/talleres/${id}`);
 });
+
+// ==========================================
+// Manejador global de rutas inexistentes (404)
+// Debe estar al final, después de todas las rutas definidas
+// ==========================================
+app.use((req, res) => {
+  res.status(404).render('error', {
+    url: req.originalUrl
+  });
+});
+
 // Escucha del servidor
 app.listen(PORT, () => {
     console.log(`Servidor escuchando en http://localhost:${PORT}`);
