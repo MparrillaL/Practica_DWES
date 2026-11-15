@@ -24,23 +24,19 @@ export function estaInscrito(tallerId, email, inscripciones) {
 }
 
 /**
- * 3. Normaliza y valida una solicitud de inscripción en el servidor.
- * Devuelve un objeto con los errores detectados (si está vacío {}, los datos son válidos).
+ * 3. Valida el formato de una solicitud de inscripción.
+ * Limpia los datos y valida solo formato (no reglas de negocio).
+ * Devuelve { valores: { nombre, email }, errores: {} }.
+ * Las reglas de negocio (plazas, duplicado) se validan después en la ruta POST.
  */
-export function validarInscripcion(datos = {}, taller, inscripciones) {
+export function validarInscripcion(datos = {}) {
   const errores = {};
 
-  // a. Verificar si el taller existe (protección contra IDs manipulados)
-  if (!taller) {
-    errores.taller = 'El taller seleccionado no existe.';
-    return errores;
-  }
-
-  // b. Normalización estricta de textos recibidos
+  // 1. Normalizar: limpiar y estandarizar entrada
   const nombreNormalizado = String(datos.nombre ?? '').trim();
   const emailNormalizado = String(datos.email ?? '').trim().toLowerCase();
 
-  // c. Validar Nombre (obligatorio)
+  // 2. Validar nombre (formato)
   if (!nombreNormalizado) {
     errores.nombre = 'El nombre es obligatorio.';
   } else if (nombreNormalizado.length < 2) {
@@ -49,24 +45,19 @@ export function validarInscripcion(datos = {}, taller, inscripciones) {
     errores.nombre = 'El nombre no puede superar los 100 caracteres.';
   }
 
-  // d. Validar Email (formato)
+  // 3. Validar email (formato)
   const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailNormalizado) {
     errores.email = 'El email es obligatorio.';
   } else if (emailNormalizado.length > 254 || !regexEmail.test(emailNormalizado)) {
     errores.email = 'El email no es válido.';
-  } else if (estaInscrito(taller.id, emailNormalizado, inscripciones)) {
-    // e. Validar correo duplicado en el mismo taller
-    errores.email = 'Este correo ya se encuentra inscrito en este taller.';
   }
 
-  // f. Validar disponibilidad de plazas libres
-  const plazasRestantes = obtenerPlazasRestantes(taller, inscripciones);
-  if (plazasRestantes <= 0) {
-    errores.plazas = 'Lo sentimos, este taller no dispone de plazas libres.';
-  }
-
-  return errores;
+  // Devolver siempre estructura { valores, errores }
+  return {
+    valores: { nombre: nombreNormalizado, email: emailNormalizado },
+    errores
+  };
 }
 
 /**
