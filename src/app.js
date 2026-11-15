@@ -5,6 +5,7 @@ import express from 'express';
 import { talleres, inscripciones } from './data/datos.js';
 import {
     obtenerPlazasRestantes,
+    estaInscrito,
     validarInscripcion,
     siguienteId,
     buscarTallerPorId,
@@ -121,35 +122,31 @@ app.post('/talleres/:id/inscripcion', (req, res) => {
   const { valores, errores } = validarInscripcion(datos);
   const { nombre, email } = valores;
 
-  // 2. Si hay errores de formato, mostrar formulario nuevamente con valores limpios
+  // 2. Si no hay errores de formato, validar reglas de negocio
+  if (Object.keys(errores).length === 0) {
+    if (estaInscrito(taller.id, email, inscripciones)) {
+      errores.email = 'Este correo ya se encuentra inscrito en este taller.';
+    }
+
+    const plazasRestantes = obtenerPlazasRestantes(taller, inscripciones);
+    if (plazasRestantes <= 0) {
+      errores.plazas = 'Lo sentimos, este taller no dispone de plazas libres.';
+    }
+  }
+
+  // 3. Si hay errores (formato o negocio), mostrar formulario con solo campos correctos
   if (Object.keys(errores).length > 0) {
     return res.status(400).render('inscripcion', {
       taller,
-      valores: { nombre, email },
+      valores: {
+        nombre: errores.nombre ? '' : nombre,
+        email: errores.email ? '' : email
+      },
       errores
     });
   }
 
-  // 3. Validar reglas de negocio (email duplicado, plazas disponibles)
-  if (estaInscrito(taller.id, email, inscripciones)) {
-    errores.email = 'Este correo ya se encuentra inscrito en este taller.';
-  }
-
-  const plazasRestantes = obtenerPlazasRestantes(taller, inscripciones);
-  if (plazasRestantes <= 0) {
-    errores.plazas = 'Lo sentimos, este taller no dispone de plazas libres.';
-  }
-
-  // 4. Si hay errores de negocio, mostrar formulario con errores acumulados
-  if (Object.keys(errores).length > 0) {
-    return res.status(400).render('inscripcion', {
-      taller,
-      valores: { nombre, email },
-      errores
-    });
-  }
-
-  // 5. SI TODO ES VÁLIDO: guardar la inscripción con los datos ya normalizados
+  // 4. SI TODO ES VÁLIDO: guardar la inscripción con los datos ya normalizados
   const nuevaInscripcion = {
     id: siguienteId(inscripciones),
     tallerId: taller.id,
@@ -159,7 +156,7 @@ app.post('/talleres/:id/inscripcion', (req, res) => {
 
   inscripciones.push(nuevaInscripcion);
 
-  // 6. PRG (Post/Redirect/Get): redirección 303 para que F5 no reenvíe el formulario
+  // 5. PRG (Post/Redirect/Get): redirección 303 para que F5 no reenvíe el formulario
   return res.redirect(303, `/talleres/${taller.id}`);
 });
 
