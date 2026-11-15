@@ -62,7 +62,7 @@ La función `obtenerPlazasRestantes(taller, inscripciones)` filtra las inscripci
 
 ### 3. Ficha del taller (`GET /talleres/:id`)
 
-El `id` se valida con una **expresión regular de lista blanca** (`^[1-9]\d*`) que rechaza valores no válidos como `0x1` (hexadecimal), `01` (cero a la izquierda), `abc` (texto) o `0` (cero). Si la validación falla o el taller no existe, se devuelve 404. La vista `detalle.ejs` muestra un estado según las plazas restantes:
+El `id` se valida con una **expresión regular de lista blanca** (`^[1-9]\d*$`) que rechaza valores no válidos como `0x1` (hexadecimal), `01` (cero a la izquierda), `abc` (texto), `0` (cero) o `12abc` (sufijo no numérico, rechazado gracias al `$` final). Si la validación falla o el taller no existe, se devuelve 404. La vista `detalle.ejs` muestra un estado según las plazas restantes:
 
 - Más de una plaza: "N plazas disponibles"
 - Una plaza: "Última plaza disponible"
@@ -88,9 +88,9 @@ Si hay errores se responde con 400 y se vuelve a mostrar el formulario con los m
 
 | Función                                            | Qué hace                                              | Devuelve               |
 | -------------------------------------------------- | ----------------------------------------------------- | ---------------------- |
-| `obtenerPlazasRestantes(taller, inscripciones)`    | Plazas totales menos inscripciones del taller         | Número (>= 0)          |
+| `obtenerPlazasRestantes(taller, inscripciones)`    | Plazas totales menos inscripciones del taller         | Número (puede ser negativo si `plazas` < inscritos) |
 | `estaInscrito(tallerId, email, inscripciones)`     | Comprueba si un correo ya está inscrito en ese taller | `true` o `false`       |
-| `validarInscripcion(datos, taller, inscripciones)` | Valida formato y reglas de negocio                    | `{ valores, errores }` |
+| `validarInscripcion(datos)`                        | Valida solo el formato (nombre y email)               | `{ valores, errores }` |
 | `siguienteId(inscripciones)`                       | Calcula el siguiente id de inscripción                | Número                 |
 | `buscarTallerPorId(idTexto, talleres)`             | Valida y busca un taller por id con regex whitelist   | Objeto taller o `null` |
 
@@ -107,48 +107,24 @@ Se ha implementado un middleware propio que registra todas las peticiones HTTP r
 - **Qué muestra:** El método HTTP (GET, POST, etc.), la URL completa con parámetros de consulta y la fecha/hora de la petición.
 - **Dónde está:** `src/middlewares/registro.js` (exportado como módulo ES6).
 - **Posición en la cadena:** Se registra **al inicio** de `app.js` (antes de `express.urlencoded()` y de todas las rutas). Esto es crítico porque garantiza que captura **todas** las peticiones entrantes, incluso las que no coinciden con ninguna ruta.
-- **Por qué `originalUrl`:** Se usa `req.originalUrl` (no `req.url`) para preservar la URL completa incluyendo todos los parámetros de consulta. Si hubiese routers montados, `req.url` cambiaría al entrar en cada subrouter, pero `originalUrl` nunca cambia.
-- **Formato:** `[DD/MM/YYYY HH:MM:SS] MÉTODO /url` (ejemplo: `[15/11/2026 17:14:40] POST /talleres/2/inscripcion`)
+- **Por qué `originalUrl`:** Se usa `req.originalUrl` (no `req.url`) porque ambas incluyen la query string, pero difieren si hay routers montados: dentro de un subrouter `req.url` cambia (se recorta el prefijo de montaje), mientras que `originalUrl` conserva siempre la URL completa tal como llegó al servidor.
+- **Formato:** `[DD/MM/YYYY HH:MM:SS] MÉTODO /url` (ejemplo: `[15/11/2026 17:14:40] POST /talleres/2/inscripcion`). Un ejemplo completo de salida en consola está en [Prueba del Middleware de Logging](#prueba-del-middleware-de-logging).
 
-**Ejemplo de salida en consola:**
-
-```
-Servidor escuchando en http://localhost:3000
-[15/11/2026 17:14:00] GET /
-[15/11/2026 17:14:05] GET /talleres
-[15/11/2026 17:14:25] GET /talleres/1
-[15/11/2026 17:14:40] POST /talleres/2/inscripcion
-[15/11/2026 17:14:44] GET /ruta-inexistente
-```
-
-### Manejador Global de Rutas Inexistentes (`GET /`, línea ~158 de `app.js`)
+### Manejador Global de Rutas Inexistentes (`app.js`)
 
 Se ha implementado un manejador global para devolver **HTTP 404** cuando el usuario solicita una ruta que no existe.
 
 - **Dónde está:** Al final de `app.js`, después de todas las rutas definidas.
 - **Por qué al final:** Express ejecuta los middlewares en orden. Si el manejador 404 estuviese antes, nunca llegaría a ninguna ruta definida. Colocándolo al final se asegura que solo se activa cuando ninguna otra ruta ha coincidido.
-- **Por qué `app.use()` y no `app.get()`:** Porque `app.use()` es un middleware que coincide con **cualquier método HTTP** (GET, POST, DELETE, etc.) en cualquier ruta no registrada. `app.get()` solo coincidiría con peticiones GET a un patrón específico. Además, este manejador tiene cero parámetros: `app.use((req, res) => ...)`, lo cual es un patrón estándar en Express.
+- **Por qué `app.use()` y no `app.get()`:** `app.use()` es un middleware sin ruta asociada (se llama sin primer argumento de tipo texto), por lo que coincide con **cualquier método HTTP** (GET, POST, DELETE, etc.) y con cualquier ruta no registrada. `app.get()` solo coincidiría con peticiones GET a un patrón específico, y en Express 5 ni siquiera `app.get('*')` arrancaría (el comodín `*` ya no es válido como patrón de ruta suelto). El manejador recibe los dos parámetros habituales, `app.use((req, res) => ...)`.
 - **No necesita `next()`:** Es el último middleware de la cadena, por eso es terminal.
 - **También captura talleres inexistentes:** Cuando se accede a `/talleres/99` o `/talleres/abc`, la función `buscarTallerPorId()` devuelve `null`, y la ruta responde con la misma vista de error.
 
-**Ejemplo de petición:**
-
-```bash
-curl -i http://localhost:3000/ruta-inexistente
-```
-
-**Respuesta esperada:**
-
-```
-HTTP/1.1 404 Not Found
-Content-Type: text/html; charset=utf-8
-```
-
-La vista `error.ejs` renderiza un mensaje de error integrado en el diseño de la aplicación (con header, footer y botones de navegación).
+Un ejemplo de petición y la respuesta esperada están en [Prueba del Tratamiento de Rutas 404](#prueba-del-tratamiento-de-rutas-404).
 
 ## Ejemplos con curl
 
-Y su equivalente en HTML entre paréntesis. Con el servidor en marcha en el puerto 3000. En Windows PowerShell hay que usar `curl.exe` en lugar de `curl`, y comillas en las URLs con `&`.
+Y su equivalente en HTML entre paréntesis. Con el servidor en marcha en el puerto 3000. En Windows PowerShell hay que usar `curl.exe` en lugar de `curl`, y comillas en las URLs con `&`. Todos los comandos se muestran en una sola línea a propósito: el carácter de continuación en PowerShell es la tilde invertida (`` ` ``), no la barra invertida (`\`) de bash, así que si necesitas dividir un comando en varias líneas en PowerShell usa `` ` `` al final de cada línea.
 
 ### Listado de talleres
 
@@ -213,9 +189,7 @@ curl -i http://localhost:3000/talleres/2/inscripcion
 ### Alta de inscripción correcta (responde 303 y redirige a la ficha)
 
 ```bash
-curl -i -X POST http://localhost:3000/talleres/2/inscripcion \
-  --data-urlencode "nombre=Luis Pérez" \
-  --data-urlencode "email=luis@example.com"
+curl -i -X POST http://localhost:3000/talleres/2/inscripcion --data-urlencode "nombre=Luis Pérez" --data-urlencode "email=luis@example.com"
 ```
 
 (HTML: formulario de `/talleres/2/inscripcion`.)
@@ -223,25 +197,19 @@ curl -i -X POST http://localhost:3000/talleres/2/inscripcion \
 ### Alta con datos no válidos (responde 400 y muestra los errores)
 
 ```bash
-curl -i -X POST http://localhost:3000/talleres/1/inscripcion \
-  --data-urlencode "nombre=" \
-  --data-urlencode "email=correo-malo"
+curl -i -X POST http://localhost:3000/talleres/1/inscripcion --data-urlencode "nombre=" --data-urlencode "email=correo-malo"
 ```
 
 ### Correo ya inscrito en el taller (responde 400)
 
 ```bash
-curl -i -X POST http://localhost:3000/talleres/1/inscripcion \
-  --data-urlencode "nombre=Curro" \
-  --data-urlencode "email=currox@example.com"
+curl -i -X POST http://localhost:3000/talleres/1/inscripcion --data-urlencode "nombre=Curro" --data-urlencode "email=currox@example.com"
 ```
 
 ### Taller completo (responde 400)
 
 ```bash
-curl -i -X POST http://localhost:3000/talleres/3/inscripcion \
-  --data-urlencode "nombre=Pepe" \
-  --data-urlencode "email=pepe@example.com"
+curl -i -X POST http://localhost:3000/talleres/3/inscripcion --data-urlencode "nombre=Pepe" --data-urlencode "email=pepe@example.com"
 ```
 
 ## Ejemplos de Funcionalidades Adicionales (Addendum)
