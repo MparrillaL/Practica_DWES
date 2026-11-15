@@ -7,6 +7,7 @@ import {
     obtenerPlazasRestantes,
     validarInscripcion,
     siguienteId,
+    buscarTallerPorId,
 } from './utils/utilidades.js';
 import { middlewareRegistro } from './middlewares/registro.js';
 
@@ -59,57 +60,33 @@ app.get('/talleres', (req, res) => {
 });
 // RUTA 2: ficha de un taller con su estado de plazas
 app.get('/talleres/:id', (req, res) => {
-    // Conversión explícita y validación estricta de req.params.id
-    const id = Number(req.params.id);
+    const taller = buscarTallerPorId(req.params.id, talleres);
 
-    if (!Number.isInteger(id) || id <= 0) {
-        return res.status(404).render('detalle', {
-            taller: null,
-            error: 'El identificador de taller no es válido.'
-        });
-    }
-
-    // Uso del método find() requerido para localizar el elemento
-    const tallerEncontrado = talleres.find((t) => t.id === id);
-
-    if (!tallerEncontrado) {
-        return res.status(404).render('detalle', {
-            taller: null,
-            error: 'El taller solicitado no existe.'
+    if (!taller) {
+        return res.status(404).render('error', {
+            url: req.originalUrl
         });
     }
 
     // Cálculo de plazas restantes para evaluar el estado en la vista
-    const plazasRestantes = obtenerPlazasRestantes(tallerEncontrado, inscripciones);
+    const plazasRestantes = obtenerPlazasRestantes(taller, inscripciones);
 
     return res.status(200).render('detalle', {
-        taller: { ...tallerEncontrado, plazasRestantes },
+        taller: { ...taller, plazasRestantes },
         error: null
     });
 });
 // RUTA 3: muestra el formulario de inscripción (solo si el taller existe y tiene plazas)
 app.get('/talleres/:id/inscripcion', (req, res) => {
-  const id = Number(req.params.id);
-
-  // 1. Validar si el ID es numérico y positivo
-  if (!Number.isInteger(id) || id <= 0) {
-    return res.status(404).render('detalle', {
-      taller: null,
-      error: 'Identificador de taller no válido.'
-    });
-  }
-
-  // 2. Buscar el taller en la colección
-  const taller = talleres.find((t) => t.id === id);
+  const taller = buscarTallerPorId(req.params.id, talleres);
 
   if (!taller) {
-    return res.status(404).render('detalle', {
-      taller: null,
-      error: 'El taller solicitado no existe.'
+    return res.status(404).render('error', {
+      url: req.originalUrl
     });
   }
 
-  // 3. Comprobar si quedan plazas libres antes de mostrar el formulario
+  // Comprobar si quedan plazas libres antes de mostrar el formulario
   const plazasRestantes = obtenerPlazasRestantes(taller, inscripciones);
 
   if (plazasRestantes <= 0) {
@@ -119,7 +96,7 @@ app.get('/talleres/:id/inscripcion', (req, res) => {
     });
   }
 
-  // 4. Renderizar el formulario pasando objetos vacíos para valores y errores
+  // Renderizar el formulario pasando objetos vacíos para valores y errores
   return res.render('inscripcion', {
     taller,
     valores: {},
@@ -131,21 +108,11 @@ app.get('/talleres/:id/inscripcion', (req, res) => {
 // RUTA 4: Procesar Formulario de Inscripción (POST /talleres/:id/inscripcion)
 // ==========================================
 app.post('/talleres/:id/inscripcion', (req, res) => {
-  const id = Number(req.params.id);
-
-  if (!Number.isInteger(id) || id <= 0) {
-    return res.status(404).render('detalle', {
-      taller: null,
-      error: 'Identificador de taller no válido.'
-    });
-  }
-
-  const taller = talleres.find((t) => t.id === id);
+  const taller = buscarTallerPorId(req.params.id, talleres);
 
   if (!taller) {
-    return res.status(404).render('detalle', {
-      taller: null,
-      error: 'El taller solicitado no existe.'
+    return res.status(404).render('error', {
+      url: req.originalUrl
     });
   }
 
@@ -172,7 +139,7 @@ app.post('/talleres/:id/inscripcion', (req, res) => {
   // 4. SI TODO ES VÁLIDO: guardar la inscripción con los datos ya normalizados
   const nuevaInscripcion = {
     id: siguienteId(inscripciones),
-    tallerId: id,
+    tallerId: taller.id,
     nombre,
     email
   };
@@ -180,7 +147,7 @@ app.post('/talleres/:id/inscripcion', (req, res) => {
   inscripciones.push(nuevaInscripcion);
 
   // 5. PRG (Post/Redirect/Get): redirección 303 para que F5 no reenvíe el formulario
-  return res.redirect(303, `/talleres/${id}`);
+  return res.redirect(303, `/talleres/${taller.id}`);
 });
 
 // ==========================================

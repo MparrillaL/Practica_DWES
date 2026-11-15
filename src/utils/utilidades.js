@@ -77,3 +77,22 @@ export function siguienteId(inscripciones) {
   if (inscripciones.length === 0) return 1;
   return Math.max(...inscripciones.map((i) => i.id)) + 1;
 }
+
+/**
+ * 4. Busca un taller por ID con validación estricta de entrada.
+ * Valida que el texto sea un entero positivo sin ceros a la izquierda.
+ * Regex: primer dígito 1-9, resto cualesquiera (0-9).
+ * Métodos utilizados: regex test(), Number(), find()
+ */
+export function buscarTallerPorId(idTexto, talleres) {
+  // Validar con lista blanca: enteros positivos sin ceros a la izquierda
+  const regexIdValido = /^[1-9]\d*$/;
+  
+  if (!regexIdValido.test(String(idTexto || ''))) {
+    return null;
+  }
+
+  // Solo si pasa validación, convertir y buscar
+  const id = Number(idTexto);
+  return talleres.find((t) => t.id === id) || null;
+}
